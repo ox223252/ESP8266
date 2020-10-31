@@ -53,27 +53,17 @@ static void boardIdSet ( const char * const __restrict__ str )
 	eepromSet ( EEPROM_BORAD_ID, (uint8_t*)boardId, min ( strlen ( boardId ) + 1, sizeof ( boardId ) ) );
 }
 
-////////////////////////////////////////////////////////////////////////////////
-/// Main part
-void setup ( void )
+/// \brief select network and return true if network changed
+static bool selectNetwork ( )
 {
-	
-	pinMode ( BUILTIN_LED, OUTPUT );
-
-	digitalWrite ( BUILTIN_LED, HIGH );
-	delay ( 1000 );
-
-	Serial.begin ( 115200 );
-	Serial.println ( );
-
-	// eeprom part, here we are setting the board ID
-	// to know who talk on system
-	EEPROM.begin ( sizeof ( boardId ) + sizeof ( networkId ) );
-
-	eepromGet ( EEPROM_NETWORK_ID, &networkId, sizeof ( networkId ) );
-	networkId %= sizeof ( network ) / sizeof ( *network );
-
-	Serial.print ( "You will use " );
+	if ( wifiConnected )
+	{
+		Serial.print ( "You are using " );
+	}
+	else
+	{
+		Serial.print ( "You will use " );
+	}
 	Serial.print ( network[ networkId ].ssid );
 	Serial.println ( ", are you OK ? (Y/n)" );
 
@@ -98,6 +88,36 @@ void setup ( void )
 		while ( !yesNo ( 10000, true ) );
 
 		Serial.println ( "Save network id for next reboot" );
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Main part
+void setup ( void )
+{
+	
+	pinMode ( BUILTIN_LED, OUTPUT );
+
+	digitalWrite ( BUILTIN_LED, HIGH );
+	delay ( 1000 );
+
+	Serial.begin ( 115200 );
+	Serial.println ( );
+
+	// eeprom part, here we are setting the board ID
+	// to know who talk on system
+	EEPROM.begin ( sizeof ( boardId ) + sizeof ( networkId ) );
+
+	eepromGet ( EEPROM_NETWORK_ID, &networkId, sizeof ( networkId ) );
+	networkId %= sizeof ( network ) / sizeof ( *network );
+
+	if ( selectNetwork ( ) )
+	{
 		eepromSet ( EEPROM_NETWORK_ID, &networkId, sizeof ( networkId ) );
 	}
 
@@ -140,5 +160,24 @@ void setup ( void )
 
 void loop ( void )
 {
-	delay ( 1000 );
+	if ( Serial.available ( ) > 0 )
+	{
+		if ( Serial.read ( ) != 's' )
+		{
+			return;
+		}
+
+		serialCleanInput ( );
+		
+		if ( selectNetwork ( ) )
+		{
+			eepromSet ( EEPROM_NETWORK_ID, &networkId, sizeof ( networkId ) );
+		}
+	}
+	else
+	{
+		delay ( 1000 );
+		return;
+	}
+
 }
