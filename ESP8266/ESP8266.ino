@@ -5,6 +5,7 @@
 
 #include <EEPROM.h>
 
+#include "core.h"
 
 static uint8_t networkId = 0;
 static char boardId[32] = { 0 };
@@ -100,10 +101,8 @@ static bool selectNetwork ( )
 /// Main part
 void setup ( void )
 {
-	
-	pinMode ( BUILTIN_LED, OUTPUT );
+	coreSetup ( );
 
-	digitalWrite ( BUILTIN_LED, HIGH );
 	delay ( 1000 );
 
 	Serial.begin ( 115200 );
@@ -162,22 +161,29 @@ void loop ( void )
 {
 	if ( Serial.available ( ) > 0 )
 	{
-		if ( Serial.read ( ) != 's' )
+		switch ( Serial.read ( ) )
 		{
-			return;
-		}
-
-		serialCleanInput ( );
-		
-		if ( selectNetwork ( ) )
-		{
-			eepromSet ( EEPROM_NETWORK_ID, &networkId, sizeof ( networkId ) );
+			case 's':
+			{
+				serialCleanInput ( );
+				
+				if ( selectNetwork ( ) )
+				{
+					eepromSet ( EEPROM_NETWORK_ID, &networkId, sizeof ( networkId ) );
+				}
+				break;
+			}
+			case 'r':
+			{
+				ESP.restart();
+				break;
+			}
+			default:
+			{
+				return;
+			}
 		}
 	}
-	else
-	{
-		delay ( 1000 );
-		return;
-	}
-
+	
+	coreLoop ( );
 }

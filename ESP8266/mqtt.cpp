@@ -1,18 +1,12 @@
 #include "wifi.h"
 #include "mqtt.h"
 
+#include "core.h"
+
 bool mqttConnected = false; ///< mqtt status
 
 AsyncMqttClient mqttClient;
 Ticker mqttReconnectTimer;
-
-enum {
-	MQTT_UNKNOW
-};
-
-const char * mqtt_topics[] =  {
-	[MQTT_UNKNOW] = NULL
-};
 
 /// \brief convert topic string into an enum value
 /// \param[ in ] topic: string we search to find in mqtt_topics
@@ -41,28 +35,7 @@ static uint8_t mqttTopicConvert ( const char * const __restrict__ topic )
 static void mqttOnMessage ( const char * const __restrict__ topic, const char * const __restrict__ payload, 
 	const AsyncMqttClientMessageProperties properties, const size_t len, const size_t index, const size_t total )
 {
-	switch ( mqttTopicConvert ( topic ) )
-	{
-		default:
-		{
-			Serial.println("[MQTT] Publish received.");
-			Serial.print("[MQTT]   topic: ");
-			Serial.println(topic);
-			Serial.print("[MQTT]   qos: ");
-			Serial.println(properties.qos);
-			Serial.print("[MQTT]   dup: ");
-			Serial.println(properties.dup);
-			Serial.print("[MQTT]   retain: ");
-			Serial.println(properties.retain);
-			Serial.print("[MQTT]   len: ");
-			Serial.println(len);
-			Serial.print("[MQTT]   index: ");
-			Serial.println(index);
-			Serial.print("[MQTT]   total: ");
-			Serial.println(total);
-			break;
-		}
-	}
+	coreMqttCallback ( mqttTopicConvert ( topic ), payload, len );
 }
 
 /// \breif callback on disconnect event
@@ -91,6 +64,8 @@ static void mqttOnConnect ( const bool sessionPresent )
 		mqttClient.subscribe ( mqtt_topics[ i ], 1 );
 	}
 	mqttConnected = true;
+
+	coreMqttConnectCallback ( );
 }
 
 void mqttConnect ( void )
