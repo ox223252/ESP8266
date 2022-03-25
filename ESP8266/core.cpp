@@ -1,17 +1,42 @@
-// https://www.esp8266.com/viewtopic.php?t=17549
-// https://microcontrollerslab.com/esp8266-interrupts-timers-arduino-ide-nodemcu/
-
 #include "core.h"
 #include "mqtt.h"
 
-static void ICACHE_RAM_ATTR gpioIt ( void )
+typedef struct _bell {
+	uint8_t quiet:1,
+		active:1,
+		status:1,
+		alarm:1;
+} bell_t;
+
+bell_t bell = {
+	.quiet = false,
+	.active = false,
+	.status = false,
+	.alarm = false
+}; 
+
+static void led ( const bool on )
 {
+	digitalWrite ( BUILTIN_LED, on ? LOW : HIGH );
+}
+
+static void noize ( const bool on )
+{
+	digitalWrite ( D3, on ? LOW : HIGH );
+}
+
+
+static void ICACHE_RAM_ATTR bellIt ( void )
+{
+	bell.active = true;
 }
 
 static void ICACHE_RAM_ATTR onTimerISR ( void )
 {
-	digitalWrite ( BUILTIN_LED, !digitalRead ( BUILTIN_LED ) );
+    bell.active = false;
 }
+
+double periode = 1.0;
 
 void coreSetup ( void )
 {
@@ -19,33 +44,103 @@ void coreSetup ( void )
 	pinMode ( BUILTIN_LED, OUTPUT );
 	digitalWrite ( BUILTIN_LED, HIGH );
 
-	// D2 = GPIO4
-	pinMode ( D2, INPUT_PULLUP );
-	attachInterrupt( digitalPinToInterrupt ( D2 ), gpioIt, FALLING );
+	pinMode ( D2, INPUT_PULLUP ); // le GPIO est à 1 par defaut, quand la boule passe ça active l'optocoupleur et fait passer le GPUO à zero
+	attachInterrupt( digitalPinToInterrupt ( D2 ), bellIt, FALLING );
+
+	// D3 = GPIO0
+	pinMode ( D3, OUTPUT );
+	digitalWrite ( D3, HIGH );
 
 	// timer used for bell duration
 	timer1_isr_init ( );
 	timer1_attachInterrupt ( onTimerISR );
-	// clock 80 MHz
+	timer1_write ( periode * 312500 ); // periode / frq => 1Hz for 1 sec
 
-	timer1_write ( 5000000 / 2 / 1 ); // tick/s / frq => 1Hz for 1 sec
-
-	timer1_enable ( TIM_DIV16, TIM_EDGE, TIM_LOOP ); // TIM_LOOP / TIM_SINGLE
+	// timer1_enable ( TIM_DIV256, TIM_EDGE, TIM_SINGLE ); // TIM_LOOP / TIM_SINGLE
+	// timer1_disable ( );
 }
 
 void coreLoop ( void )
 {
+	if ( bell.alarm )
+	{
+		noize ( true );
+		return;
+	}
+
+	if ( bell.active
+		&& !bell.status )
+	{ // bell of need to set on
+		mqttClient.publish ( "/domotic/bell", 0, 1, "on" );
+
+		led ( true );
+		noize ( !bell.quiet );
+
+		bell.status = true;
+
+		timer1_write ( periode * 312500 ); // periode / frq => 1Hz for 1 sec
+		timer1_enable ( TIM_DIV256, TIM_EDGE, TIM_SINGLE );
+	}
+
+	if ( !bell.active
+		&& bell.status )
+	{
+		mqttClient.publish ( "/domotic/bell", 0, 1, "off" );
+
+		led ( false );
+		noize ( false );
+		
+		bell.status = false;
+
+		timer1_disable ( );
+	}
 }
 
 void coreMqttCallback ( const uint8_t topic, const char * const __restrict__ payload, const size_t len )
 {
 	switch ( topic )
 	{
-		case MQTT_TOPIC:
+		case MQTT_DOM_BELL_LEN:
 		{
-			uint8_t qos = 0;
-			bool retain = false;
-			mqttClient.publish ( logsTopic, qos, retain, payload );
+			double duration = atof ( payload );
+			if ( duration <= 0.0
+				|| duration > 25.0 )
+			{
+				return;
+			}
+			periode = duration;
+			break;
+		}
+		case MQTT_DOM_BELL_HELP:
+		{
+			mqttClient.publish ( logsTopic, 0, 0, "cmds : /domotic/bell/status [quiet|noizy|force]" );
+			mqttClient.publish ( logsTopic, 0, 0, "cmds : /domotic/bell/duration 1.0" );
+			break;
+		}
+		case MQTT_DOM_BELL_STATUS:
+		{
+			if ( strncmp ( payload, "quiet", len ) == 0 )
+			{
+				bell.quiet = true;
+			}
+			else if ( strncmp ( payload, "noizy", len ) == 0 )
+			{
+				bell.quiet = false;
+			}
+			else if ( strncmp ( payload, "force", len ) == 0 )
+			{
+				bell.active = true;
+			}
+			break;
+		}
+		case MQTT_DOM_BREAK:
+		{
+			bell.alarm = !strncmp ( payload, "on", len );
+			break;
+		}
+		case MQTT_DOM_FIRE:
+		{
+			bell.alarm = !strncmp ( payload, "on", len );
 			break;
 		}
 		default:
@@ -57,4 +152,5 @@ void coreMqttCallback ( const uint8_t topic, const char * const __restrict__ pay
 
 void coreMqttConnectCallback ( void )
 {
+	mqttClient.publish ( "/domotic/bell", 0, 1, bell.status ? "on" : "off" );
 }
