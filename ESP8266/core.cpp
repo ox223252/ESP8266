@@ -4,6 +4,16 @@
 #include "core.h"
 #include "mqtt.h"
 
+#ifdef ESP8266
+	#define GPIO_IT D2
+#else
+	#warning ##COUCOU
+#endif
+
+#define CLOCK_DIV TIM_DIV16
+
+static const uint32_t mClock = F_CPU / 2 / ((CLOCK_DIV==TIM_DIV1) ? 1 : (CLOCK_DIV==TIM_DIV16) ? 16 : 256);
+
 static void ICACHE_RAM_ATTR gpioIt ( void )
 {
 }
@@ -20,17 +30,17 @@ void coreSetup ( void )
 	digitalWrite ( BUILTIN_LED, HIGH );
 
 	// D2 = GPIO4
-	pinMode ( D2, INPUT_PULLUP );
-	attachInterrupt( digitalPinToInterrupt ( D2 ), gpioIt, FALLING );
+	pinMode ( GPIO_IT, INPUT_PULLUP );
+	attachInterrupt( digitalPinToInterrupt ( GPIO_IT ), gpioIt, FALLING );
 
 	// timer used for bell duration
 	timer1_isr_init ( );
 	timer1_attachInterrupt ( onTimerISR );
 	// clock 80 MHz
 
-	timer1_write ( 5000000 / 2 / 1 ); // tick/s / frq => 1Hz for 1 sec
+	timer1_write ( mClock / 1 ); // tick/s / frq => 1Hz for 1 sec
 
-	timer1_enable ( TIM_DIV16, TIM_EDGE, TIM_LOOP ); // TIM_LOOP / TIM_SINGLE
+	timer1_enable ( CLOCK_DIV, TIM_EDGE, TIM_LOOP ); // TIM_LOOP / TIM_SINGLE
 }
 
 void coreLoop ( void )

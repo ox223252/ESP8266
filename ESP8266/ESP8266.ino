@@ -101,12 +101,12 @@ static bool selectNetwork ( )
 /// Main part
 void setup ( void )
 {
-	coreSetup ( );
+	Serial.begin ( 115200 );
+	Serial.println ( );
 
 	delay ( 1000 );
 
-	Serial.begin ( 115200 );
-	Serial.println ( );
+	coreSetup ( );
 
 	// eeprom part, here we are setting the board ID
 	// to know who talk on system

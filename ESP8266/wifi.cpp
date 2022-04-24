@@ -22,7 +22,7 @@ static String connectionStatus( const int status )
 		}
 		case WL_CONNECT_FAILED:
 		{
-			return "Wrong password";
+			return "Connection failed";
 		}
 		case WL_IDLE_STATUS:
 		{
