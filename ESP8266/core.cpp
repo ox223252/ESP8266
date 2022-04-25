@@ -7,7 +7,7 @@
 #ifdef ESP8266
 	#define GPIO_IT D2
 #else
-	#warning ##COUCOU
+	#warning
 #endif
 
 #define CLOCK_DIV TIM_DIV16
