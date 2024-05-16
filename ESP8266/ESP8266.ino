@@ -103,6 +103,8 @@ void setup ( void )
 {
 	Serial.begin ( 115200 );
 	Serial.println ( );
+	Serial.print ( "MAC : " );
+	Serial.println ( WiFi.macAddress() );
 
 	delay ( 1000 );
 
