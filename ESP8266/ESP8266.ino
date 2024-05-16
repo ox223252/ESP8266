@@ -45,7 +45,7 @@ static void boardIdGet ( void )
 		return;
 	}
 	eepromGet ( EEPROM_BORAD_ID, boardId, sizeof ( boardId ) );
-	boardId[ sizeof(boardId) ] = 0;
+	boardId[ sizeof(boardId)-1 ] = 0;
 }
 
 /// \brief write board ID into the EEPROM
@@ -142,7 +142,7 @@ void setup ( void )
 		Serial.print ( "set board id: " );
 
 		serialGetLine ( boardId, sizeof ( boardId ) );
-	
+
 		Serial.print ( "\nNew ID: " );
 		Serial.println ( boardId );
 
