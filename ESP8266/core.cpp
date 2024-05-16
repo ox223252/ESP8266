@@ -27,7 +27,7 @@ bell_t bell = {
 
 static void led ( const bool on )
 {
-	digitalWrite ( BUILTIN_LED, on ? LOW : HIGH );
+	digitalWrite ( LED_BUILTIN, on ? LOW : HIGH );
 }
 
 static void noize ( const bool on )
@@ -36,12 +36,12 @@ static void noize ( const bool on )
 }
 
 
-static void ICACHE_RAM_ATTR bellIt ( void )
+static void IRAM_ATTR bellIt ( void )
 {
 	bell.active = true;
 }
 
-static void ICACHE_RAM_ATTR onTimerISR ( void )
+static void IRAM_ATTR onTimerISR ( void )
 {
     bell.active = false;
 }
@@ -51,8 +51,8 @@ double periode = 1.0;
 void coreSetup ( void )
 {
 	// BUILDIN_LED = D4 = GPIO2
-	pinMode ( BUILTIN_LED, OUTPUT );
-	digitalWrite ( BUILTIN_LED, HIGH );
+	pinMode ( LED_BUILTIN, OUTPUT );
+	digitalWrite ( LED_BUILTIN, HIGH );
 
 	pinMode ( GPIO_IT, INPUT_PULLUP ); // le GPIO est à 1 par defaut, quand la boule passe ça active l'optocoupleur et fait passer le GPUO à zero
 	attachInterrupt( digitalPinToInterrupt ( GPIO_IT ), bellIt, FALLING );
